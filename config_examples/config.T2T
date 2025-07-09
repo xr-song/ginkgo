@@ -1,10 +1,5 @@
 #!/bin/bash
 
-## This is an example configuration script for Ginkgo. When using Ginkgo via the webserver, this is
-## in charge of creating this file. This example is only useful if you are planing to run Ginkgo
-## as a standalone programme.
-
-
 # =======================================================================================
 # Running options
 # =======================================================================================
@@ -31,9 +26,8 @@ segMeth=1
 # =======================================================================================
 # Genome
 # =======================================================================================
-# Directory name for ROOT_DIR/genomes/${chosen_genome}
-# Pre-calculated files are only available for hg19
-chosen_genome=hg19
+# Directory name for ${chosen_genome}
+chosen_genome=/staging/leuven/stg_00064/Xinran/db/T2T-CHM13v2.0/ginkgo_BS_reference
 # =======================================================================================
 
 
@@ -60,14 +54,14 @@ rmpseudoautosomal=0
 # aligner on the whole genome. This is used to calculate bins of "mappable" (i.e. variable) genome.
 # The resulting value is the name of a file under ginkgo/genomes/$choosen_genome/original/ with the
 # bin coordinates
-binMeth=variable_100000_150_bwa
+binMeth=variable_5000000_150_bismark #variable_1000000_150_bowtie #variable_10000000_150_bowtie
 
 # Mask bad bins (experimental)
 # Removes bins with consistent read pileups from the analysis (e.g. at chromosome boundaries)
-rmbadbins=0
+rmbadbins=1 # 0 if do not remove bad bins; 1 if remove bad bins (does not make sense to remove bad bins if the bin size is large)
 
 # Probably some legacy options. Always set to 0 and empty on the Ginkgo webserver. This seemed to be
-# an option to provide user-defined bins.
+ an option to provide user-defined bins.
 b=0
 binList=
 # For user-defined segmentation (seems to be disabled now)
@@ -128,16 +122,4 @@ q=0
 # - 1: light blue / orange
 # - 2: magenta / gold
 color=3
-# =======================================================================================
-
-
-# =======================================================================================
-# Reporting by email
-# =======================================================================================
-# Only required if you want to get an email at the end of the run. Probably not necessary
-# in standalone mode. Set email to nothing to skip email feature. Otherwise, set your
-# email address and the permalink which is meant to be the location of the results.
-user=
-email=
-permalink=
 # =======================================================================================

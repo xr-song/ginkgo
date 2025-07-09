@@ -8,21 +8,21 @@
 # -- Variables
 # ------------------------------------------------------------------------------
 
-home=/local1/work/ginkgo
-dir=${home}/uploads/${1}
-source ${dir}/config
+dir="${1}" # output dir
+home="${2}" # source code (repository) dir
+source "${dir}"/config
 distMet=$distMeth
-touch $dir/index.html
+touch "$dir"/index.html
 
 inFile=list
 statFile=status.xml
-genome=${home}/genomes/${chosen_genome}
+genome=${chosen_genome} 
 
 if [ "$rmpseudoautosomal" == "1" ];
 then
   genome=${genome}/pseudoautosomal
 else
-  genome=${genome}/original
+  genome=$genome
 fi
 
 # ------------------------------------------------------------------------------
@@ -30,65 +30,65 @@ fi
 # ------------------------------------------------------------------------------
 
 if [ "$f" == "0" ]; then
-  touch ${dir}/ploidyDummy.txt
+  touch "${dir}"/ploidyDummy.txt
   facs=ploidyDummy.txt
 else 
   # In case upload file with \r instead of \n (Mac, Windows)
-  tr '\r' '\n' < ${dir}/${facs} > ${dir}/quickTemp
-  mv ${dir}/quickTemp ${dir}/${facs}
+  tr '\r' '\n' < "${dir}"/${facs} > "${dir}"/quickTemp
+  mv "${dir}"/quickTemp "${dir}"/${facs}
   # 
-  sed "s/.bed//g" ${dir}/${facs} | sort -k1,1 | awk '{print $1"\t"$2}' > ${dir}/quickTemp 
-  mv ${dir}/quickTemp ${dir}/${facs}
+  sed "s/.bed//g" "${dir}"/${facs} | sort -k1,1 | awk '{print $1"\t"$2}' > "${dir}"/quickTemp 
+  mv "${dir}"/quickTemp "${dir}"/${facs}
 fi
 
 # ------------------------------------------------------------------------------
 # -- Map Reads & Prepare Samples For Processing
 # ------------------------------------------------------------------------------
 
-total=`wc -l < ${dir}/${inFile}`
+total=`wc -l < "${dir}"/${inFile}`
 
 if [ "$init" == "1" ];
 then
 
   # Clean directory
-  rm -f ${dir}/*_mapped ${dir}/*.jpeg ${dir}/*.newick ${dir}/*.xml ${dir}/*.cnv ${dir}/Seg* ${dir}/results.txt
+  rm -f "${dir}"/*_mapped "${dir}"/*.jpeg "${dir}"/*.newick "${dir}"/*.xml "${dir}"/*.cnv "${dir}"/Seg* "${dir}"/results.txt
 
   # Map user bed files to appropriate bins
   cnt=0
   while read file;
   do
-    ${home}/scripts/status ${dir}/${statFile} 1 $file $cnt $total
+    ${home}/scripts/status "${dir}"/${statFile} 1 $file $cnt $total
 
     # Unzip gzip files if necessary
     if [[ "${file}" =~ \.gz$ ]];
     then
-      firstLineChr=$(zcat ${dir}/${file} | head -n 1 | cut -f1 | grep "chr")
+      firstLineChr=$(zcat "${dir}"/${file} | head -n 1 | cut -f1 | grep "chr")
       if [[ "${firstLineChr}" == "" ]];
       then
-        awk '{print "chr"$0}' <(zcat ${dir}/${file}) > ${dir}/${file}_tmp
-        mv ${dir}/${file}_tmp ${dir}/${file/.gz/}
-        gzip -f ${dir}/${file/.gz/}
+        awk '{print "chr"$0}' <(zcat "${dir}"/${file}) > "${dir}"/${file}_tmp
+        mv "${dir}"/${file}_tmp "${dir}"/${file/.gz/}
+        gzip -f "${dir}"/${file/.gz/}
       fi
-      ${home}/scripts/binUnsorted ${genome}/${binMeth} `wc -l < ${genome}/${binMeth}` <(zcat -cd ${dir}/${file}) `echo ${file} | awk -F ".bed" '{print $1}'` ${dir}/${file}_mapped
+      ${home}/scripts/binUnsorted ${genome}/${binMeth} `wc -l < ${genome}/${binMeth}` <(zcat -cd "${dir}"/${file}) `echo ${file} | awk -F ".bed" '{print $1}'` "${dir}"/${file}_mapped
 
     # 
     else
-      firstLineChr=$( head -n 1 ${dir}/${file} | cut -f1 | grep "chr")
+      firstLineChr=$( head -n 1 "${dir}"/${file} | cut -f1 | grep "chr")
       if [[ "${firstLineChr}" == "" ]];
       then
-        awk '{print "chr"$0}' ${dir}/${file} > ${dir}/${file}_tmp
-        mv ${dir}/${file}_tmp ${dir}/${file}
+        awk '{print "chr"$0}' "${dir}"/${file} > ${dir}/${file}_tmp
+        mv ${dir}/${file}_tmp "${dir}"/${file}
       fi
-      ${home}/scripts/binUnsorted ${genome}/${binMeth} `wc -l < ${genome}/${binMeth}` ${dir}/${file} `echo ${file} | awk -F ".bed" '{print $1}'` ${dir}/${file}_mapped
-      gzip ${dir}/${file}
+      ${home}/scripts/binUnsorted ${genome}/${binMeth} `wc -l < ${genome}/${binMeth}` "${dir}"/${file} `echo ${file} | awk -F ".bed" '{print $1}'` "${dir}"/${file}_mapped
+      gzip "${dir}"/${file}
     fi
 
     cnt=$(($cnt+1))
-  done < ${dir}/${inFile}
+  done < "${dir}"/${inFile}
 
   # Concatenate binned reads to central file  
-  paste ${dir}/*_mapped > ${dir}/data
-  rm -f ${dir}/*_mapped ${dir}/*_binned
+  paste "${dir}"/*_mapped > ${dir}/data
+  rm -f "${dir}"/*_mapped ${dir}/*_binned
 
 fi
 
@@ -97,10 +97,10 @@ fi
 # ------------------------------------------------------------------------------
 
 if [ "$segMeth" == "2" ]; then
-    ${home}/scripts/binUnsorted ${genome}/${binMeth} `wc -l < ${genome}/${binMeth}` ${dir}/${ref} Reference ${dir}/${ref}_mapped
+    ${home}/scripts/binUnsorted ${genome}/${binMeth} `wc -l < ${genome}/${binMeth}` "${dir}"/${ref} Reference "${dir}"/${ref}_mapped
 else
     ref=refDummy.bed
-    touch ${dir}/${ref}_mapped
+    touch "${dir}"/${ref}_mapped
 fi
 
 # ------------------------------------------------------------------------------
@@ -108,8 +108,8 @@ fi
 # ------------------------------------------------------------------------------
 
 if [ "$process" == "1" ]; then
-  echo "Launching process.R $genome $dir $statFile data $segMeth $binMeth $clustMeth $distMet $color ${ref}_mapped $f $facs $sex $rmbadbins"
-  ${home}/scripts/process.R $genome $dir $statFile data $segMeth $binMeth $clustMeth $distMet $color ${ref}_mapped $f $facs $sex $rmbadbins
+  echo "Launching process.R $genome $dir $statFile data $segMeth $binMeth $clustMeth $distMet $color ${ref}_mapped $f $facs $sex $rmbadbins $home"
+  ${home}/scripts/process.R $genome "$dir" $statFile data $segMeth $binMeth $clustMeth $distMet $color ${ref}_mapped $f $facs $sex $rmbadbins $home # added source code dir
 fi
 
 # ------------------------------------------------------------------------------
@@ -117,8 +117,8 @@ fi
 # ------------------------------------------------------------------------------
 
 if [ "$fix" == "1" ]; then
-  echo "Launching reclust.R $genome $dir $statFile $binMeth $clustMeth $distMet $f $facs $sex"
-  ${home}/scripts/reclust.R $genome $dir $statFile $binMeth $clustMeth $distMet $f $facs $sex
+  echo "Launching reclust.R $genome $dir $statFile $binMeth $clustMeth $distMet $f $facs $sex $home"
+  ${home}/scripts/reclust.R $genome $dir $statFile $binMeth $clustMeth $distMet $f $facs $sex $home
 fi
 
 # ------------------------------------------------------------------------------
@@ -139,13 +139,5 @@ done
 # -- Call CNVs
 # ------------------------------------------------------------------------------
 
-echo "Launching ${home}/scripts/CNVcaller ${dir}/SegCopy ${dir}/CNV1 ${dir}/CNV2"
-${home}/scripts/CNVcaller ${dir}/SegCopy ${dir}/CNV1 ${dir}/CNV2
-
-# ------------------------------------------------------------------------------
-# -- Email notification of completion
-# ------------------------------------------------------------------------------
-
-if [ "$email" != "" ]; then
-	echo -e "Your analysis on Ginkgo is complete! Check out your results at $permalink" | mail -s "Your Analysis Results" $email -- -F "Ginkgo"
-fi
+echo "Launching ${home}/scripts/CNVcaller "${dir}"/SegCopy "${dir}"/CNV1 "${dir}"/CNV2"
+${home}/scripts/CNVcaller "${dir}"/SegCopy "${dir}"/CNV1 "${dir}"/CNV2

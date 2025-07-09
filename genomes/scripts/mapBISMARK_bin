@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# binning
+TYPE=bismark
+for size in $(cat binsizes); do
+       SIZE=$size
+       /staging/leuven/stg_00064/Xinran/sw/ginkgo/genomes/scripts/bin results_${SIZE}_${LENGTH}_${TYPE}_${IN} centromeres $SIZE $LENGTH `grep -w $IN lengths | awk '{print $2}'` ${IN}_${LENGTH}_${TYPE}_done
+done

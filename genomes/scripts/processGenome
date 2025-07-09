@@ -1,5 +1,5 @@
 #!/bin/bash
 
 #Extract reads at all positions across chromosome
-/seq/schatz/mschatz/ginkgo/genomes/scripts/simReads ${IN}.fa ${IN}_${LENGTH}_frags $LENGTH
+/staging/leuven/stg_00064/Xinran/sw/ginkgo/genomes/scripts/simReads ${IN}.fa ${IN}_${LENGTH}_frags $LENGTH
 

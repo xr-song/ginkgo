@@ -9,17 +9,10 @@
 # ------------------------------------------------------------------------------
 
 # Config
-minPloidy   = 1.5
-maxPloidy   = 6
+plot_heatmap = FALSE
+minPloidy   = 2 #1.5
+maxPloidy   = 2 #6
 minBinWidth = 5
-main_dir="/local1/work/ginkgo/scripts"
-
-if (!file.exists(main_dir)) {
-  # Get main_dir from full commandArgs
-  args        = commandArgs(FALSE)
-  script.name = sub("--file=", "", grep("--file=", args, value = TRUE))
-  main_dir    = normalizePath(dirname(script.name))
-}
 
 # User settings
 args        = commandArgs(TRUE)
@@ -37,6 +30,7 @@ f           = as.numeric(args[[11]])
 facs        = args[[12]]
 sex         = as.numeric(args[[13]])
 bb          = as.numeric(args[[14]])
+main_dir    = file.path(args[[15]], 'scripts') # added
 
 # Libraries
 library(ctc)
@@ -75,6 +69,7 @@ if (f == 1 | f == 2) {
 if (bb)
 {
   print("Removing bad bins...")
+  print(paste("Reading bad bins file: ",genome, "/badbins_", bm, sep=""))
   badbins = read.table(paste(genome, "/badbins_", bm, sep=""), header=FALSE, sep="\t", as.is=TRUE)
   GC      = data.frame(GC[-badbins[,1], 1])
   loc     = loc[-badbins[,1], ]
@@ -437,7 +432,7 @@ for(k in 1:w)
   dev.off()
 
   #Plot colored CN profile
-  jpeg(filename=paste(lab[k], "_CN.jpeg", sep=""), width=3000, height=750)
+  pdf(paste(lab[k], "_CN.pdf", sep=""), width=24, height=7) #width=3000, height=750)
 
   top=8
   rectangles1=data.frame(pos[seq(1,nrow(pos), 2),])
@@ -451,17 +446,19 @@ for(k in 1:w)
   plot1 = ggplot() +
     geom_rect(data=rectangles1, aes(xmin=X1, xmax=X2, ymin=-top*.1, ymax=top), fill='gray85', alpha=0.75) +
     geom_rect(data=rectangles2, aes(xmin=X1, xmax=X2, ymin=-top*.1, ymax=top), fill='gray75', alpha=0.75) +
-    geom_point(data=clouds, aes(x=x, y=y), color='gray45', size=3) +
-    geom_point(data=flat, aes(x=x, y=y), size=4) +
-    geom_point(data=amp, aes(x=x, y=y), size=4, color=colors[cp,1]) +
-    geom_point(data=del, aes(x=x, y=y), size=4, color=colors[cp,2]) +
-    geom_text(data=anno, aes(x=x, y=y, label=chrom), size=12) +
+    geom_point(data=clouds, aes(x=x, y=y), color='gray45', size=1.5) +
+    geom_point(data=flat, aes(x=x, y=y), size=2) +
+    geom_point(data=amp, aes(x=x, y=y), size=2.5, color='#FF0000') + #color=colors[cp,1]
+    geom_point(data=del, aes(x=x, y=y), size=2.5, color='#0069FF') + #color=colors[cp,2]
+    geom_text(data=anno, aes(x=x, y=y, label=chrom), size=6) +
     scale_x_continuous(limits=c(0, l), expand = c(0, 0)) +
     scale_y_continuous(limits=c(-top*.1, top), expand = c(0, 0)) +
-    labs(title=paste("Integer Copy Number Profile for Sample \"", lab[k], "\"\n Predicted Ploidy = ", CN, sep=""), x="Chromosome", y="Copy Number", size=16) +
-    theme(plot.title=element_text(size=40, vjust=1.5)) +
-    theme(axis.title.x=element_text(size=40, vjust=-.05), axis.title.y=element_text(size=40, vjust=.1)) +
-    theme(axis.text=element_text(color="black", size=40), axis.ticks=element_line(color="black"))+
+    # ADD THE FOLLOWING LINE IF YOU WANT LABELS
+    #labs(title=paste("Integer Copy Number Profile for Sample \"", lab[k], "\"\n Predicted Ploidy = ", CN, sep=""), x="Chromosome", y="Copy Number", size=16) +
+    labs(x="Chromosome", y="Copy number", size=13) +
+    #theme(plot.title=element_text(size=40, vjust=1.5)) +
+    theme(axis.title.x=element_text(size=30, vjust=-.05), axis.title.y=element_text(size=30, vjust=.1)) +
+    theme(axis.text=element_text(color="black", size=30), axis.ticks=element_line(color="black"))+
     theme(axis.ticks.x = element_blank(), axis.text.x = element_blank(), axis.line.x = element_blank()) +
     theme(panel.background = element_rect(fill = 'gray90')) +
     theme(plot.margin=unit(c(.5,1,.5,1),"cm")) +
@@ -677,27 +674,110 @@ if(cm == "NJ"){
   clust3 = phylo2hclust(clust3)
 }
 
-write("Making heatRaw.jpeg", stderr())
-jpeg("heatRaw.jpeg", width=2000, height=1400)
-heatmap.2(t(rawBPs), Colv=FALSE, Rowv=as.dendrogram(clust), margins=c(5,20), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=bluered(2))
-dev.off()
+# Write the ordering of the clustering dendrogram to a tsv file
+clust_labels = clust2$labels
+row_order <- order.dendrogram(as.dendrogram(clust2))
+ordered_labels <- clust_labels[row_order]
+#print("ordered_labels:")
+#print(ordered_labels)
+write.table(ordered_labels, "ordered_labels.tsv", quote=FALSE, sep="\t", row.names=FALSE, col.names=FALSE)
 
-write("Making heatNorm.jpeg", stderr())
-step=quantile(fixedBPs, c(.98))[[1]]
-jpeg("heatNorm.jpeg", width=2000, height=1400)
-heatmap.2(t(fixedBPs), Colv=FALSE, Rowv=as.dendrogram(clust), margins=c(5,20), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=bluered(15), breaks=seq(0,step,step/15))
-dev.off()
+if (plot_heatmap) {
+	#write("Making heatNorm.jpeg", stderr())
+	#step=quantile(fixedBPs, c(.98))[[1]]
+	#jpeg("heatNorm.jpeg", width=2000, height=1400)
+	#heatmap.2(t(fixedBPs), Colv=FALSE, Rowv=as.dendrogram(clust), margins=c(5,20), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=bluered(15), breaks=seq(0,step,step/15))
+	#dev.off()
 
-write("Making heatCN.jpeg", stderr())
-step=min(20, quantile(finalBPs, c(.98))[[1]])
-jpeg("heatCN.jpeg", width=2000, height=1400)
-heatmap.2(t(finalBPs), Colv=FALSE, Rowv=as.dendrogram(clust2), margins=c(5,20), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=colorRampPalette(c("white","green","green4","violet","purple"))(15), breaks=seq(0,step,step/15))
-dev.off()
+	library(RColorBrewer)
+	library(fields)
 
-write("Making heatCor.jpeg", stderr())
-jpeg("heatCor.jpeg", width=2000, height=1400)
-heatmap.2(t(finalBPs), Colv=FALSE, Rowv=as.dendrogram(clust3), margins=c(5,20), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=colorRampPalette(c("white","steelblue1","steelblue4","orange","sienna3"))(15), breaks=seq(0,step,step/15))
-dev.off()
+	nBlues <- 50
+	nReds <- 50
+	blues <- colorRampPalette(c("#1273de", "white"))(nBlues)
+	reds <- colorRampPalette(c("white", "#c45100"))(nReds)
+	myPalette <- c(blues, reds)
+	minVal <- 0
+	maxVal <- 4
+	whitePoint <- 2
+	# Calculate the range for each segment and create breaks
+	breaksCN <- c(seq(minVal, whitePoint, length.out = nBlues + 1), 
+				seq(whitePoint, maxVal, length.out = nReds + 1)[-1]) 
+
+	# Add coverage color bar
+	pattern <- "combined.coverage.genome.wide*"
+	files <- list.files(pattern = pattern)
+	files
+	if (length(files) == 0) {
+	  stop("No files found with the specified pattern.")
+	}
+	coverageFile <- files[1]
+
+	# Read the file
+	coverageData <- read.table(coverageFile, header = TRUE, sep = "\t",colClasses = c("character", "NULL", "NULL", "numeric", "NULL"),col.names = c("Cell", NA, NA, "Coverage", NA))
+	coverageData$Cell <- gsub("-", ".", coverageData$Cell)
+
+	# Filter coverageData to include only those cells present in finalBPs
+	coverageData <- coverageData[which(coverageData$Cell %in% ordered_labels), ]
+	# Order coverageData to match the order of rownames in finalBPs
+	coverageData <- coverageData[match(ordered_labels, coverageData$Cell), ]
+	#print(coverageData$Cell)
+
+	# Verify that the row names of finalBPs_ordered match the order of coverageData$Cell
+	all(ordered_labels == coverageData$Cell)  # Should return TRUE
+
+	# Get coverage corresponding to the cells
+	coverage <- coverageData$Coverage
+
+	# Legend for the coverage bar
+	#coverageColors <- colorRampPalette(brewer.pal(9, "Purples"))(nColors)[as.numeric(cut(coverage, breaks=nColors))] # do this if you want the range of colors correspond to the values of coverage
+	nColors <- 100  # Number of colors in the gradient
+	colorPalette <- colorRampPalette(brewer.pal(9, "Purples"))(nColors)
+	minVal <- 2
+	maxVal <- 10
+	breaks <- seq(minVal, maxVal, length.out = nColors + 1)
+	# Get colors for the coverage data
+	coverageColors <- colorPalette[as.numeric(cut(coverage, breaks=breaks))]
+
+	# Verify the lengths
+	if(length(breaks) != length(colorPalette) + 1) {
+	  stop("The length of 'breaks' must be exactly one more than the length of 'colorPalette'.")
+	}
+
+	write.table(t(finalBPs), "finalBPs.tsv", sep="\t", quote=FALSE, row.names=TRUE, col.names=NA)
+
+	# RUN THE CODE BELOW IF YOU WANT THE HEATMAP!
+	#write("Making heatCN.png", stderr())
+	#png("heatCN.png", width=1800, height=1200, res=200)
+	#heatmap.2(t(finalBPs), Colv=FALSE, Rowv=as.dendrogram(clust2), margins=c(1,15), dendrogram="row", trace="none", cex.main=1, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=myPalette, breaks=breaksCN, RowSideColors=coverageColors)
+	#dev.off()
+
+	# Plot the color legend separately
+	# Generate a sequence of coverage values for the legend
+	#coverageValues <- seq(minVal, maxVal, length.out = nColors)
+	# Create a matrix of z values that correspond to the color breaks
+	#zMatrix <- matrix(coverageValues, nrow = 1, ncol = nColors)
+	# Plot the legend
+	#image.plot(zlim = c(minVal, maxVal), col = colorPalette, legend.only = TRUE,
+	#           horizontal = FALSE, axis.args = list(at = seq(minVal, maxVal, by = 1)))
+	#legend("topright", legend=rev(coverageValues), fill=rev(colorPalette), 
+	#       title="Coverage", cex=0.5, xpd=TRUE, inset=c(0, 0))
+
+
+	# Use image.plot with legend.only=TRUE to create the legend
+	#png("coverage_legend.png",  width=5, height=3, units="in", res=200)
+	#coverageValues <- c(2,3,4,5,6,7,8,9,10)
+	#z <- matrix(seq(minVal, maxVal, length.out = length(coverageValues)), nrow = 1)
+	#image.plot(z = z, col = colorPalette, legend.only = TRUE,
+	#           horizontal = TRUE, axis.args = list(at = coverageValues, labels = coverageValues))
+	#dev.off()
+
+
+	#write("Making heatCor.jpeg", stderr())
+	#jpeg("heatCor.jpeg", width=2000, height=1400)
+	#heatmap.2(t(finalBPs), Colv=FALSE, Rowv=as.dendrogram(clust3), margins=c(5,20), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=colorRampPalette(c("white","steelblue1","steelblue4","orange","sienna3"))(15), breaks=seq(0,step,step/15))
+	#dev.off()
+}
 
 statusFile=file( paste(user_dir, "/", status, sep="") )
 writeLines(c("<?xml version='1.0'?>", "<status>", "<step>3</step>", paste("<processingfile>Finished</processingfile>", sep=""), paste("<percentdone>100</percentdone>", sep=""), "<tree>clust.xml</tree>", "</status>"), statusFile)

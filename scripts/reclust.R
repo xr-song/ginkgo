@@ -2,8 +2,6 @@
 
 args<-commandArgs(TRUE)
 
-main_dir="/local1/work/ginkgo/scripts"
-
 genome <- args[[1]]
 user_dir <- args[[2]]
 status <- args[[3]]
@@ -13,6 +11,7 @@ dm <- args[[6]]
 f <- as.numeric(args[[7]])
 facs <- args[[8]]
 sex <- as.numeric(args[[9]])
+main_dir    = file.path(args[[15]], 'scripts') # added
 
 library('ctc')
 library(gplots)
@@ -70,6 +69,8 @@ d <- dist(t(fixed), method = dm)
 clust <- hclust(d, method = cm)
 clust$labels <- lab
 write(hc2Newick(clust), file=paste(user_dir, "/clust.newick", sep=""))
+height(clust)
+length(clust)
 
 ##
 command=paste("java -cp ", main_dir, "/forester_1025.jar org.forester.application.phyloxml_converter -f=nn ", user_dir, "/clust.newick ", user_dir, "/clust.xml", sep="");
@@ -185,7 +186,7 @@ writeLines(c("<?xml version='1.0'?>", "<status>", "<step>4</step>", "<processing
 close(statusFile)
 
 jpeg("heatRaw.jpeg", width=2000, height=1400)
-heatmap.2(t(rawBPs), Colv=FALSE, Rowv=as.dendrogram(clust), dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=bluered(2))
+heatmap.2(t(rawBPs), Colv=FALSE, Rowv=clust, dendrogram="row", trace="none", xlab="Bins", ylab="Samples", cex.main=2, cex.axis=1.5, cex.lab=1.5, cexCol=.001, col=bluered(2))
 dev.off()
 
 statusFile<-file( paste(user_dir, "/", status, sep="") )

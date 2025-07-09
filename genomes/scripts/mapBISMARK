@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# export paths
+export PATH=/staging/leuven/stg_00064/Xinran/sw/SAMTOOLS/bin:$PATH
+export PATH=/staging/leuven/stg_00064/Xinran/sw/Bismark-0.24.2:$PATH
+export PATH=/staging/leuven/stg_00064/Xinran/sw/bowtie2-2.4.5-linux-x86_64:$PATH
+
+# directory containing the Bisulfite_Genome folder
+genome_folder=/staging/leuven/stg_00064/Xinran/db/T2T-CHM13v2.0/fasta/UCSC
+
+echo "Start running mapBISMARK"
+
+# bismark alignment of the fragments
+bismark --sam --non_directional --output_dir . --genome_folder $genome_folder --fasta --single_end ${IN}_${LENGTH}_frags
+
+# extract mapping info
+mapq_cutoff=30
+chr=$(echo ${IN}_${LENGTH}_frags_bismark_bt2.sam | cut -d'_' -f1)
+echo $chr
+samtools view -h ${IN}_${LENGTH}_frags_bismark_bt2.sam | awk -v chr="$chr" -v mapq_cutoff="$mapq_cutoff" 'BEGIN {OFS="\t"} !/^@/ && $3 == chr && $5 >= mapq_cutoff {print $3, $4}' | sort -k2,2g > "${IN}_${LENGTH}_bismark_done"
+

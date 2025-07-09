@@ -4,28 +4,27 @@
 ####################################################
 
 # List of read lengths to consider
-READLEN=(48 76 101 150)
+#READLEN=(48 76 101 150)
+READLEN=(150)
 
 # List of bin sizes (uniquely mappable bases) to consider
-BINSIZE=(10000 25000 50000 100000 175000 250000 500000 1000000 2500000 5000000 10000000)
-#BINSIZE=(10000)
-
-# This is the username that will be monitored for qsub
-USERNAME=mschatz
-
-# Path to rest of scripts
-SCRIPTS=/seq/schatz/mschatz/ginkgo/genomes/scripts
+#BINSIZE=(10000 25000 50000 100000 175000 250000 500000 1000000 2500000 5000000 10000000)
+BINSIZE=(100000 500000 1000000 2500000 5000000 10000000)
 
 # Time out for SGE
 export SGE_JSV_TIMEOUT=120
 
-if [ $# != 1 ]
+if [ $# != 2 ]
 then
-  echo "buildGenome ASSEMBLY_PREFIX"
+  echo "buildGenome input params incorrect!"
   exit
 fi
 
 ASSEMBLY=$1
+
+# Path to rest of scripts
+SCRIPTS=$2
+
 
 echo "# Indexing $ASSEMBLY for ${READLEN[*]} bp reads using bins of size ${BINSIZE[*]}"
 
@@ -41,19 +40,19 @@ then
   cat `ls | grep chr | sort -V | tr '\n' ' '` > ${ASSEMBLY}.fa
 fi
 
-if [ ! -f bwaBUILT ]
-then
-  echo -e "\n Step (3/8): Building Index Files"
-  /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=8G -v ASSEMBLY=$ASSEMBLY $SCRIPTS/indexBWA
-  /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=8G -v ASSEMBLY=$ASSEMBLY $SCRIPTS/indexBOWTIE
-fi
+#if [ ! -f bowtieBUILT ]
+#then
+#  echo -e "\n Step (3/8): Building Index Files"
+#  sbatch --mem=8G --export=ASSEMBLY=$ASSEMBLY --wrap="$SCRIPTS/indexBWA" --job-name=indexBWA -o %j.indexBWA.o -e %j.indexBWA.e --cluster wice -A lp_big_wice_cpu --partition dedicated_big_bigmem
+#  sbatch --mem=8G --export=ASSEMBLY=$ASSEMBLY --wrap="$SCRIPTS/indexBOWTIE" --job-name=indexBOWTIE -o %j.indexBOWTIE.o -e %j.indexBOWTIE.e --cluster wice -A lp_big_wice_cpu --partition dedicated_big_bigmem
+#fi
 
 for len in ${READLEN[*]}; do
   if [ ! -f frag_${len}_done ]
   then
     echo -e "\n Step (4/8): Simulating $len bp Reads"
     while read line; do 
-      /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=3G -v IN=$line -v LENGTH=$len $SCRIPTS/processGenome
+        sbatch --export=IN=$line,LENGTH=$len --mem=3G --job-name=simulating_bp_reads -o %j.simulating_bp_reads.o -e %j.simulating_bp_reads.e --cluster wice -A lp_big_wice_cpu --partition dedicated_big_bigmem --wrap="$SCRIPTS/processGenome"
     done < list
     touch frag_${len}_done
   fi
@@ -98,12 +97,12 @@ for size in ${BINSIZE[*]}; do
 done
 
 # Check to ensure both indexes have been build and reads have been sampled before proceeding
-while [ ! -f "bwaBUILT" ] || [ ! -f "bowtieBUILT" ] || [ `qstat | grep $USERNAME | grep process | wc -l` -gt 0 ] ; do
-  sleep 30
-done
+#while [ ! -f "bwaBUILT" ] || [ ! -f "bowtieBUILT" ] || [ `qstat | grep $USERNAME | grep process | wc -l` -gt 0 ] ; do
+#sleep 30
+#done
 
-
-if [ ! -f bwa_done ] || [ ! -f bowtie_done ]
+#if [ ! -f bwa_done ] || [ ! -f bowtie_done ]
+if [ ! -f bismark_done ]
 then
   ## Create a file of binsizes to compute
   rm -f binsizes
@@ -114,8 +113,9 @@ then
   echo -e "\n Step (7/8): Mapping Simulated Reads To Reference and Bin"
   while read line; do
     for len in ${READLEN[*]}; do
-      /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=2G -pe threads 2 -v ASSEMBLY=$ASSEMBLY -v IN=$line -v LENGTH=$len $SCRIPTS/mapBOWTIE
-      /opt/uge/bin/lx-amd64/qsub -cwd -l m_mem_free=2G -l tmp_free=100G -pe threads 2 -v ASSEMBLY=$ASSEMBLY -v IN=$line -v LENGTH=$len $SCRIPTS/mapBWA
+        #sbatch --export=ASSEMBLY=$ASSEMBLY,IN=$line,LENGTH=$len --job-name=mapBOWTIE -o %j.mapBOWTIE.o -e %j.mapBOWTIE.e --mem=2G -c 2 --cluster wice -A lp_big_wice_cpu --partition dedicated_big_bigmem --wrap="$SCRIPTS/mapBOWTIE"
+        #sbatch --export=ASSEMBLY=$ASSEMBLY,IN=$line,LENGTH=$len --job-name=mapBWA -o %j.mapBWA.o -e %j.mapBWA.e --mem=2G --tmp=100G -c 2 --cluster wice -A lp_big_wice_cpu --partition dedicated_big_bigmem --wrap="$SCRIPTS/mapBWA"
+	sbatch --export=ASSEMBLY=$ASSEMBLY,IN=$line,LENGTH=$len --job-name=mapBISMARK -o %j.mapBISMARK.o -e %j.mapBISMARK.e --mem=40G -c 1 -t 06:00:00 --cluster wice -A lp_big_wice_cpu --partition dedicated_big_bigmem --wrap="$SCRIPTS/mapBISMARK"
     done
   done < list
 
@@ -125,8 +125,11 @@ fi
 
 
 # Check to ensure reads have been mapped and tested for uniqueness
-while [ ! -f bowtie_done ] || [ ! -f bwa_done ] || [ `qstat | grep $USERNAME | grep binB | wc -l` -gt 0 ] ; do
-  sleep 30
+#while [ ! -f bowtie_done ] || [ ! -f bwa_done ] || [ `qstat | grep $USERNAME | grep binB | wc -l` -gt 0 ] ; do
+#  sleep 30
+#done
+while [ ! -f "bismark_done" ] ; do
+sleep 30
 done
 
 
@@ -135,8 +138,9 @@ done
 
 for SIZE in ${BINSIZE[*]}; do
   for LENGTH in ${READLEN[*]}; do
-    for TYPE in "bwa" "bowtie"; do
-      if [ ! -f bounds_variable_${SIZE}_${LENGTH}_${TYPE} ]
+#    for TYPE in "bwa" "bowtie"; do
+    for TYPE in "bismark"; do
+     if [ ! -f bounds_variable_${SIZE}_${LENGTH}_${TYPE} ]
       then
         echo -e "\n Step (8/8): Creating variable length ${SIZE} bins with ${LENGTH} bp reads for $TYPE"
 
@@ -160,4 +164,4 @@ for SIZE in ${BINSIZE[*]}; do
   done
 done
 
-echo -e "\nAll done. You can now run clean.sh"
+echo -e "\nAll done."
