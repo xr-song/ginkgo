@@ -54,7 +54,7 @@ rmpseudoautosomal=0
 # aligner on the whole genome. This is used to calculate bins of "mappable" (i.e. variable) genome.
 # The resulting value is the name of a file under ginkgo/genomes/$choosen_genome/original/ with the
 # bin coordinates
-binMeth=variable_5000000_150_bismark #variable_1000000_150_bowtie #variable_10000000_150_bowtie
+binMeth=variable_5000000_150_bismark 
 
 # Mask bad bins (experimental)
 # Removes bins with consistent read pileups from the analysis (e.g. at chromosome boundaries)
